@@ -28,3 +28,6 @@ Resources:
             BucketName: !Ref RawTaxiDataBucket
         - S3ReadPolicy:
             BucketName: !Ref RawTaxiDataBucket
+      Environment:
+        Variables:
+          RAW_TAXI_DATA_BUCKET_NAME: !Ref RawTaxiDataBucket
