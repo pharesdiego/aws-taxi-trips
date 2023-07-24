@@ -1,13 +1,36 @@
 from bs4 import BeautifulSoup
 import re
 import requests
+import boto3
+import os
+import io
 
+s3_client = boto3.client('s3')
+bucket_name = os.environ['RAW_TAXI_DATA_BUCKET_NAME']
+file_tracker_key = 'file_tracker.txt'
 one_mb_in_bytes = 1000000
 
 # Remember to execute script from same folder. This is a relative path
 def get_already_extracted_files():
-    with open('__already_extracted_files.txt', 'r') as file:
-        return file.read()
+    try:
+        response = s3_client.get_object(
+            Bucket=bucket_name,
+            Key=file_tracker_key
+        )
+
+        return response['Body'].read().decode('utf-8')
+    except:
+        temp_file = io.StringIO('')
+        
+        s3_client.put_object(
+            Body=temp_file.getvalue(),
+            Bucket=bucket_name,
+            Key=file_tracker_key
+        )
+
+        temp_file.close()
+        
+        return ''
 
 def get_date_from_url(url):
     match = re.search('\w{4}-\d\d', url)
