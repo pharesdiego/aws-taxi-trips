@@ -8,9 +8,9 @@ import io
 s3_client = boto3.client('s3')
 bucket_name = os.environ['RAW_TAXI_DATA_BUCKET_NAME']
 file_tracker_key = 'file_tracker.txt'
+taxi_page_url = 'https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'
 one_mb_in_bytes = 1000000
 
-# Remember to execute script from same folder. This is a relative path
 def get_already_extracted_files():
     try:
         response = s3_client.get_object(
@@ -32,28 +32,49 @@ def get_already_extracted_files():
         
         return ''
 
-def get_date_from_url(url):
+def get_file_date_from_url(url):
     match = re.search('\w{4}-\d\d', url)
 
     return match[0] if match else None
-    
-def handler():
-    html = requests.get('https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page').text
+
+# Date's format: yyyy-mm
+def get_s3_path_for_data(date):
+    return '/'.join(date.split('-')) + '/data.parquet'
+
+def get_files_url_to_be_extracted(already_extracted_files):
+    html = requests.get(taxi_page_url).text
     soup = BeautifulSoup(html, features='html5lib')
+
     anchors = soup.find_all('a', {'href': re.compile(r'.*yellow_tripdata_202.*')})
-    extracted_anchors_urls = [anchor['href'] for anchor in anchors]
+
+    extracted_urls_from_anchors = [anchor['href'] for anchor in anchors]
+
+    return list(filter(lambda url: get_file_date_from_url(url) not in already_extracted_files, extracted_urls_from_anchors))
+    
+def handler(event, context):
     already_extracted_files = get_already_extracted_files()
+    files_urls_to_be_extracted = get_files_url_to_be_extracted(already_extracted_files)
 
-    files_url_to_be_downloaded = list(filter(lambda url: get_date_from_url(url) not in already_extracted_files, extracted_anchors_urls))
+    new_extracted_files = []
 
-    for file_url in files_url_to_be_downloaded:
-        response = requests.get(file_url, stream=True)
-        with open(f'data/{get_date_from_url(file_url)}.parquet', 'wb') as file:
-            for chunk in response.iter_content(chunk_size=one_mb_in_bytes):
-                file.write(chunk)
-        
-        with open('__already_extracted_files.txt', 'a') as tracker_file:
-            tracker_file.write(get_date_from_url(file_url) + '\n')
+    for file_url in files_urls_to_be_extracted:
+        response = requests.get(file_url)
+        file_date = get_file_date_from_url(file_url)
 
+        try:
+            s3_client.put_object(
+                Body=response.content,
+                Bucket=bucket_name,
+                Key=get_s3_path_for_data(file_date)
+            )
 
-handler()
+            new_extracted_files.append(file_date)
+        except:
+            print(f'error while saving parquet file for date: {file_date}')
+    
+    try:
+        s3_client.put_object(
+            Body=map(lambda file_date: file_date + '\n', new_extracted_files)
+        )
+    except:
+        print('error while writing to tracker file')
