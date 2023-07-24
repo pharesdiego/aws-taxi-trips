@@ -74,11 +74,12 @@ def handler(event, context):
         except:
             print(f'error while uploading {file_url} to s3')
     
-    try:
-        s3_client.put_object(
-            Body=''.join(map(lambda file_date: file_date + '\n', new_extracted_files)),
-            Bucket=bucket_name,
-            Key=file_tracker_key
-        )
-    except:
-        print('error while writing to tracker file')
+    if len(new_extracted_files):
+        try:
+            s3_client.put_object(
+                Body=already_extracted_files + ''.join(map(lambda file_date: file_date + '\n', new_extracted_files)),
+                Bucket=bucket_name,
+                Key=file_tracker_key
+            )
+        except:
+            print('error while writing to tracker file')
