@@ -22,6 +22,7 @@ Resources:
   TaxiDataMinerFn:
     Type: AWS::Serverless::Function
     Properties:
+      MemorySize: 256
       Timeout: 60
       CodeUri: lambdas/taxi_data_into_s3/
       Policies:
