@@ -45,7 +45,7 @@ def get_files_url_to_be_extracted(already_extracted_files):
     html = requests.get(taxi_page_url).text
     soup = BeautifulSoup(html, features='html5lib')
 
-    anchors = soup.find_all('a', {'href': re.compile(r'.*yellow_tripdata_202.*')})
+    anchors = soup.find_all('a', {'href': re.compile(r'.*yellow_tripdata_2023.*')})
 
     extracted_urls_from_anchors = [anchor['href'] for anchor in anchors]
 
