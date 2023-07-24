@@ -58,8 +58,11 @@ def handler(event, context):
     new_extracted_files = []
 
     for file_url in files_urls_to_be_extracted:
-        response = requests.get(file_url)
         file_date = get_file_date_from_url(file_url)
+        
+        print(f'downloading: {file_url}')
+
+        response = requests.get(file_url)
 
         try:
             s3_client.put_object(
@@ -70,7 +73,7 @@ def handler(event, context):
 
             new_extracted_files.append(file_date)
         except:
-            print(f'error while saving parquet file for date: {file_date}')
+            print(f'error while uploading {file_url} to s3')
     
     try:
         s3_client.put_object(
