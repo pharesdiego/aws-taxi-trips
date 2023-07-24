@@ -9,7 +9,6 @@ s3_client = boto3.client('s3')
 bucket_name = os.environ['RAW_TAXI_DATA_BUCKET_NAME']
 file_tracker_key = 'file_tracker.txt'
 taxi_page_url = 'https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'
-one_mb_in_bytes = 1000000
 
 def get_already_extracted_files():
     try:
@@ -77,7 +76,9 @@ def handler(event, context):
     
     try:
         s3_client.put_object(
-            Body=map(lambda file_date: file_date + '\n', new_extracted_files)
+            Body=''.join(map(lambda file_date: file_date + '\n', new_extracted_files)),
+            Bucket=bucket_name,
+            Key=file_tracker_key
         )
     except:
         print('error while writing to tracker file')
