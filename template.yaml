@@ -19,6 +19,11 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: raw-taxi-data
+  TransformedTaxiDataBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: transformed-taxi-data
   TaxiDataMinerFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -95,3 +100,4 @@ Resources:
           - Path: !Ref RawTaxiDataBucket
             Exclusions:
               - '*.txt'
+              - '*.csv'
