@@ -101,3 +101,69 @@ Resources:
             Exclusions:
               - '*.txt'
               - '*.csv'
+  GlueTransformJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: S3ReadRawData
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                Resource: !GetAtt RawTaxiDataBucket.Arn
+        - PolicyName: S3WriteTransformData
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetObject
+                Resource: !GetAtt TransformedTaxiDataBucket.Arn
+        - PolicyName: GlueDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:*
+                Resource: 
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueTaxiDatabase}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueTaxiDatabase}/*'
+  GlueAssetsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: glue-assets-taxi-data
+  GlueJobTransformRawData:
+    Type: AWS::Glue::Job
+    Properties:
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/transform_raw_taxi_data.py'
+      DefaultArguments:
+        "--job-bookmark-option": "job-bookmark-enable"
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      MaxRetries: 0
+      Name: transform_raw_taxi_data
+      Role: !Ref GlueTransformJobRole
+      GlueVersion: '3.0'
+
