@@ -43,7 +43,7 @@ Resources:
           Type: ScheduleV2
           Properties:
             ScheduleExpression: rate(30 days)
-  GlueRawTaxiDataCrawlerRole:
+  GlueTaxiDataCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -62,9 +62,13 @@ Resources:
                 Action:
                   - s3:*
                 Resource:
-                  !Join
+                  - !Join
                     - ''
                     - - !GetAtt RawTaxiDataBucket.Arn
+                      - '*'
+                  - !Join
+                    - ''
+                    - - !GetAtt TransformedTaxiDataBucket.Arn
                       - '*'
         - PolicyName: GlueCrawlerLogPolicy
           PolicyDocument:
@@ -89,11 +93,11 @@ Resources:
       DatabaseInput:
         Name: 'taxitripsdb'
         Description: 'Glue DB for Taxi Trips Metadata'
-  GlueRawTaxiDataCrawler:
+  GlueTaxiDataCrawler:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: glue-raw-taxi-data-crawler
-      Role: !GetAtt GlueRawTaxiDataCrawlerRole.Arn
+      Name: glue-taxi-data-crawler
+      Role: !GetAtt GlueTaxiDataCrawlerRole.Arn
       DatabaseName: !Ref GlueTaxiDatabase
       Targets:
         S3Targets:
@@ -101,6 +105,7 @@ Resources:
             Exclusions:
               - '*.txt'
               - '*.csv'
+          - Path: !Ref TransformedTaxiDataBucket
   GlueTransformJobRole:
     Type: AWS::IAM::Role
     Properties:
