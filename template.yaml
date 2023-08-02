@@ -62,13 +62,17 @@ Resources:
                 Action:
                   - s3:*
                 Resource:
+                  - !GetAtt RawTaxiDataBucket.Arn
                   - !Join
                     - ''
                     - - !GetAtt RawTaxiDataBucket.Arn
+                      - '/'
                       - '*'
+                  - !GetAtt TransformedTaxiDataBucket.Arn
                   - !Join
                     - ''
                     - - !GetAtt TransformedTaxiDataBucket.Arn
+                      - '/'
                       - '*'
         - PolicyName: GlueCrawlerLogPolicy
           PolicyDocument:
@@ -106,7 +110,7 @@ Resources:
               - '*.txt'
               - '*.csv'
           - Path: !Ref TransformedTaxiDataBucket
-  GlueTransformJobRole:
+  GlueProcessRawDataJobRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -117,6 +121,21 @@ Resources:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
       Policies:
+        - PolicyName: S3AssetsFullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:Get*
+                  - s3:List*
+                Resource: 
+                  - !GetAtt GlueAssetsBucket.Arn
+                  - !Join
+                    - ''
+                    - - !GetAtt GlueAssetsBucket.Arn
+                      - '/'
+                      - '*'
         - PolicyName: S3ReadRawData
           PolicyDocument:
             Version: '2012-10-17'
@@ -125,18 +144,27 @@ Resources:
                 Action:
                   - s3:Get*
                   - s3:List*
-                Resource: !GetAtt RawTaxiDataBucket.Arn
+                Resource:
+                  - !GetAtt RawTaxiDataBucket.Arn
+                  - !Join
+                    - ''
+                    - - !GetAtt RawTaxiDataBucket.Arn
+                      - '/'
+                      - '*'
         - PolicyName: S3WriteTransformData
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - s3:PutObject
-                  - s3:DeleteObject
-                  - s3:ListBucket
-                  - s3:GetObject
-                Resource: !GetAtt TransformedTaxiDataBucket.Arn
+                  - s3:*
+                Resource:
+                  - !GetAtt TransformedTaxiDataBucket.Arn
+                  - !Join
+                    - ''
+                    - - !GetAtt TransformedTaxiDataBucket.Arn
+                      - '/'
+                      - '*'
         - PolicyName: GlueDBAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -153,7 +181,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: glue-assets-taxi-data
-  GlueJobTransformRawData:
+  GlueJobProcessRawData:
     Type: AWS::Glue::Job
     Properties:
       WorkerType: G.1X
@@ -162,13 +190,13 @@ Resources:
       Command:
         Name: glueetl
         PythonVersion: '3'
-        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/transform_raw_taxi_data.py'
+        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/process_raw_taxi_data.py'
       DefaultArguments:
         "--job-bookmark-option": "job-bookmark-enable"
       ExecutionProperty:
         MaxConcurrentRuns: 1
       MaxRetries: 0
-      Name: transform_raw_taxi_data
-      Role: !Ref GlueTransformJobRole
+      Name: process_raw_taxi_data
+      Role: !Ref GlueProcessRawDataJobRole
       GlueVersion: '3.0'
 
