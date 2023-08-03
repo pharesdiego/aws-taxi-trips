@@ -16,6 +16,8 @@ glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 job = Job(glueContext)
 
+job.init()
+
 
 # In[559]:
 
