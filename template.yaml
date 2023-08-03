@@ -59,7 +59,7 @@ Resources:
               Service: glue.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: GlueCrawlerS3Policy
+        - PolicyName: GlueCrawlerAccessPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -77,22 +77,31 @@ Resources:
                     - '/'
                     - - !GetAtt TransformedTaxiDataBucket.Arn
                       - '*'
-        - PolicyName: GlueCrawlerLogPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
               - Effect: Allow
                 Action:
                   - logs:PutLogEvents
-                Resource: '*'
-        - PolicyName: GlueCrawlerGlueAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                Resource:
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*:/aws-glue/*"
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*:/custom-logs/*"
               - Effect: Allow
                 Action:
                   - glue:*
-                Resource: '*'
+                Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/glue-taxi-data-crawler"
+              - Effect: Allow
+                Action:
+                  - glue:GetDatabase*
+                  - glue:GetTable*
+                  - glue:CreateTable
+                  - glue:CreatePartition*
+                  - glue:DeleteDatabase
+                  - glue:DeletePartition*
+                  - glue:Batch*
+                Resource: 
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/taxitripsdb"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/taxitripsdb/*"
   GlueTaxiDatabase:
     Type: AWS::Glue::Database
     Properties:
