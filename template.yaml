@@ -232,4 +232,39 @@ Resources:
       Name: process_raw_taxi_data
       Role: !Ref GlueProcessRawDataJobRole
       GlueVersion: '3.0'
-
+  GlueLoadIntoRedshiftJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IAmBecomeDeathTheDestroyerOfWorlds
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+  GlueJobDataIntoRedshift:
+    Type: AWS::Glue::Job
+    Properties:
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 30
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/load_transformed_taxi_data_into_redshift.py'
+      DefaultArguments:
+        "--job-bookmark-option": "job-bookmark-enable"
+      ExecutionProperty:
+        MaxConcurrentRuns: 1
+      MaxRetries: 0
+      Name: load_transformed_taxi_data_into_redshift
+      Role: !Ref GlueLoadIntoRedshiftJobRole
+      GlueVersion: '3.0'
