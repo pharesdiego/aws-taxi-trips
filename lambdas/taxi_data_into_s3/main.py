@@ -66,6 +66,10 @@ def get_files_url_to_be_extracted(already_extracted_files):
     )
 
 
+def is_it_allowed_and_thus_legal_to_mine_this_data(response):
+    return response.ok
+
+
 def handler(event, context):
     already_extracted_files = get_already_extracted_files()
     files_urls_to_be_extracted = get_files_url_to_be_extracted(
@@ -75,20 +79,23 @@ def handler(event, context):
     for file_url in files_urls_to_be_extracted:
         response = requests.get(file_url)
 
-        try:
-            file_date = get_file_date_from_url(file_url)
-            file_s3_key = get_s3_path_for_data(file_date)
+        if (is_it_allowed_and_thus_legal_to_mine_this_data(response)):
+            try:
+                file_date = get_file_date_from_url(file_url)
+                file_s3_key = get_s3_path_for_data(file_date)
 
-            s3_client.put_object(
-                Body=response.content,
-                Bucket=bucket_name,
-                Key=file_s3_key
-            )
+                s3_client.put_object(
+                    Body=response.content,
+                    Bucket=bucket_name,
+                    Key=file_s3_key
+                )
 
-            extracted_files.append(file_date)
-        except Exception as e:
-            raise Exception(
-                f'Error while trying to upload {file_url} to {bucket_name} at {file_s3_key}') from e
+                extracted_files.append(file_date)
+            except Exception as e:
+                raise Exception(
+                    f'Error while trying to upload {file_url} to {bucket_name} at {file_s3_key}') from e
+        else:
+            raise Exception(f'They got us while downloading: {file_url}')
 
     if len(extracted_files):
         extracted_files_as_lines = map(lambda file_date: file_date +
