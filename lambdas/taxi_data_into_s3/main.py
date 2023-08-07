@@ -3,50 +3,46 @@ import re
 import requests
 import boto3
 import os
-import io
 
 s3_client = boto3.client('s3')
 bucket_name = os.environ['RAW_TAXI_DATA_BUCKET_NAME']
-file_tracker_key = 'file_tracker.txt'
 taxi_page_url = 'https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'
 
 
-def get_already_extracted_files():
-    """Returns file_tracker content or creates a new one if tracker doesn't exists"""
-    try:
-        response = s3_client.get_object(
-            Bucket=bucket_name,
-            Key=file_tracker_key
-        )
+def get_already_extracted_files() -> str:
+    """
+    Returns a list with file keys formatted as yyyy-mm to match the format present in the url
+    """
+    iterator = s3_client.get_paginator(
+        'list_objects_v2').paginate(Bucket=bucket_name)
 
-        return response['Body'].read().decode('utf-8')
-    except:
-        temp_file = io.StringIO('')
+    # year=yyyy/month=mm/data.parquet
+    file_keys = [content['Key'] for page in iterator for content in page['Contents']]
 
-        s3_client.put_object(
-            Body=temp_file.getvalue(),
-            Bucket=bucket_name,
-            Key=file_tracker_key
-        )
-
-        temp_file.close()
-
-        return ''
+    return [f'{key[5:9]}-{key[16:18]}' for key in file_keys]
 
 
-def get_file_date_from_url(url):
+def get_date_from_file_url(url: str) -> str:
+    """
+    Extract the date in yyyy-mm format from the file's url
+
+    :raises Exception: If match is not found. This is because the date is important to create the folder partition
+    """
     match = re.search('\w{4}-\d\d', url)
 
-    return match[0] if match else None
+    if (match):
+        return match[0]
+    else:
+        raise Exception(f"Couldn't extract date from {url}")
 
 
-def get_s3_path_for_data(date):
-    year, month = date.split('-')
+def get_s3_partitioned_key_path(yyyy_mm_date: str) -> str:
+    year, month = yyyy_mm_date.split('-')
 
     return f'year={year}/month={month}/data.parquet'
 
 
-def get_files_url_to_be_extracted(already_extracted_files):
+def get_files_url_to_be_extracted(already_extracted_files: str) -> list:
     """
     Returns a list of urls extracted from <a/>'s in the page,
     excluding those urls already extracted
@@ -62,11 +58,11 @@ def get_files_url_to_be_extracted(already_extracted_files):
 
     return list(
         filter(
-            lambda url: get_file_date_from_url(url) not in already_extracted_files, extracted_urls_from_anchors)
+            lambda url: get_date_from_file_url(url) not in already_extracted_files, extracted_urls_from_anchors)
     )
 
 
-def is_it_allowed_and_thus_legal_to_mine_this_data(response):
+def is_it_allowed_and_thus_legal_to_mine_this_data(response: requests.Response):
     return response.ok
 
 
@@ -74,15 +70,15 @@ def handler(event, context):
     already_extracted_files = get_already_extracted_files()
     files_urls_to_be_extracted = get_files_url_to_be_extracted(
         already_extracted_files)
-    extracted_files = []
+    extracting_results = {'successes': [], 'failed': []}
 
     for file_url in files_urls_to_be_extracted:
         response = requests.get(file_url)
+        file_date = get_date_from_file_url(file_url)
 
         if (is_it_allowed_and_thus_legal_to_mine_this_data(response)):
             try:
-                file_date = get_file_date_from_url(file_url)
-                file_s3_key = get_s3_path_for_data(file_date)
+                file_s3_key = get_s3_partitioned_key_path(file_date)
 
                 s3_client.put_object(
                     Body=response.content,
@@ -90,26 +86,12 @@ def handler(event, context):
                     Key=file_s3_key
                 )
 
-                extracted_files.append(file_date)
+                extracting_results['successes'].append(file_date)
             except Exception as e:
-                raise Exception(
-                    f'Error while trying to upload {file_url} to {bucket_name} at {file_s3_key}') from e
+                print(f"Error while loading {file_date} to S3: {e}")
+                extracting_results['failed'].append(file_date)
         else:
-            raise Exception(f'They got us while downloading: {file_url}')
+            print(f"Response's not okay for: {file_date}")
+            extracting_results['failed'].append(file_date)
 
-    if len(extracted_files):
-        extracted_files_as_lines = map(lambda file_date: file_date +
-                                       '\n', extracted_files)
-
-        try:
-            s3_client.put_object(
-                Body=already_extracted_files +
-                ''.join(extracted_files_as_lines),
-                Bucket=bucket_name,
-                Key=file_tracker_key
-            )
-        except Exception as e:
-            raise Exception(
-                f'Error while appending {", ".join(extracted_files)} to tracker file') from e
-
-    return extracted_files
+    return extracting_results
