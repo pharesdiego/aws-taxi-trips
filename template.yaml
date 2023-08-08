@@ -113,9 +113,6 @@ Resources:
       Targets:
         S3Targets:
           - Path: !Ref RawTaxiDataBucket
-            Exclusions:
-              - '*.txt'
-              - '*.csv'
           - Path: !Ref TransformedTaxiDataBucket
   RedshiftAccessDataRole:
     Type: AWS::IAM::Role
