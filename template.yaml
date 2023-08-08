@@ -43,11 +43,6 @@ Resources:
       Environment:
         Variables:
           RAW_TAXI_DATA_BUCKET_NAME: !Ref RawTaxiDataBucket
-      Events:
-        ScheduleEvent:
-          Type: ScheduleV2
-          Properties:
-            ScheduleExpression: rate(30 days)
   GlueTaxiDataCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
