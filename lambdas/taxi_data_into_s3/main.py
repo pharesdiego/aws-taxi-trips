@@ -11,7 +11,7 @@ taxi_page_url = 'https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page'
 
 def get_already_extracted_files() -> str:
     """
-    Returns a list with file keys formatted as yyyy-mm to match the format present in the url
+    Gets a list with S3 file keys, then returns them as yyyy-mm to match the format used in the parquet's download url
     """
     iterator = s3_client.get_paginator(
         'list_objects_v2').paginate(Bucket=bucket_name)
@@ -75,23 +75,22 @@ def handler(event, context):
     for file_url in files_urls_to_be_extracted:
         response = requests.get(file_url)
         file_date = get_date_from_file_url(file_url)
+        file_s3_key = get_s3_partitioned_key_path(file_date)
 
         if (is_it_allowed_and_thus_legal_to_mine_this_data(response)):
             try:
-                file_s3_key = get_s3_partitioned_key_path(file_date)
-
                 s3_client.put_object(
                     Body=response.content,
                     Bucket=bucket_name,
                     Key=file_s3_key
                 )
 
-                extracting_results['successes'].append(file_date)
+                extracting_results['successes'].append(file_s3_key)
             except Exception as e:
-                print(f"Error while loading {file_date} to S3: {e}")
-                extracting_results['failed'].append(file_date)
+                print(f"Error while loading {file_s3_key} to S3: {e}")
+                extracting_results['failed'].append(file_s3_key)
         else:
-            print(f"Response's not okay for: {file_date}")
-            extracting_results['failed'].append(file_date)
+            print(f"Response's not okay for: {file_s3_key}")
+            extracting_results['failed'].append(file_s3_key)
 
     return extracting_results
