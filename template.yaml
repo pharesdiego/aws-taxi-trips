@@ -29,6 +29,18 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: redshift-staging-data
+
+  ConvertZstdToGzipFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 1024
+      Timeout: 90
+      CodeUri: lambdas/zstd_to_gzip/
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Ref RawTaxiDataBucket
+        - S3ReadPolicy:
+            BucketName: !Ref RawTaxiDataBucket
   TaxiDataMinerFn:
     Type: AWS::Serverless::Function
     Properties:
@@ -93,6 +105,8 @@ Resources:
                   - glue:DeleteDatabase
                   - glue:DeletePartition*
                   - glue:Batch*
+                  - glue:Update*
+                  - glue:*
                 Resource: 
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/taxitripsdb"
