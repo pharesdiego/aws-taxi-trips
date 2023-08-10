@@ -3,6 +3,7 @@ import re
 import requests
 import boto3
 import os
+import json
 
 s3_client = boto3.client('s3')
 bucket_name = os.environ['RAW_TAXI_DATA_BUCKET_NAME']
@@ -16,10 +17,14 @@ def get_already_extracted_files() -> str:
     iterator = s3_client.get_paginator(
         'list_objects_v2').paginate(Bucket=bucket_name)
 
-    # year=yyyy/month=mm/data.parquet
-    file_keys = [content['Key'] for page in iterator for content in page['Contents']]
+    try:
+        # year=yyyy/month=mm/data.parquet
+        file_keys = [content['Key'] for page in iterator for content in page['Contents']]
 
-    return [f'{key[5:9]}-{key[16:18]}' for key in file_keys]
+        return [f'{key[5:9]}-{key[16:18]}' for key in file_keys]
+    except Exception as e:
+        print('Error while creating file keys list', e)
+        return []
 
 
 def get_date_from_file_url(url: str) -> str:
@@ -93,4 +98,6 @@ def handler(event, context):
             print(f"Response's not okay for: {file_s3_key}")
             extracting_results['failed'].append(file_s3_key)
 
+    print('Files expected to be extracted: ', files_urls_to_be_extracted)
+    print('Execution result: ', json.dumps(extracting_results))
     return extracting_results

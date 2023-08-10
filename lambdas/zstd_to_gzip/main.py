@@ -2,6 +2,7 @@ import boto3
 import pandas as pd
 from typing import TypedDict
 from io import BytesIO
+import json
 
 class ExpectedEvent(TypedDict):
     file_key: str
@@ -11,6 +12,8 @@ def handler(event: ExpectedEvent, context):
     """
     Convert and overwrites file in S3 from ZSTD compression to GZIP.
     """
+    print('Working on: ', json.dumps(event))
+
     s3 = boto3.client('s3')
 
     response = s3.get_object(Bucket=event['bucket_name'], Key=event['file_key'])
