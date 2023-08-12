@@ -28,7 +28,7 @@ def convert_file_to_gzip(bucket: str, key: str):
             tf, compression='gzip', engine='fastparquet')
 
     s3.upload_file(Bucket=bucket, Key=key,
-                   Filename=temp_file, ExtraArgs={'Metadata': {'gzipped': 'ᕦ(ò_óˇ)ᕤ'}})
+                   Filename=temp_file, ExtraArgs={'Metadata': {'gzipped': 'I was gzipped. Thanks for asking'}})
 
 
 class ExpectedEvent(TypedDict):
