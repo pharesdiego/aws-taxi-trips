@@ -29,5 +29,5 @@ def handler(event: ExpectedEvent, context):
         pd.read_parquet(BytesIO(zstd_compressed_data)).to_parquet(
             tf, compression='gzip', engine='fastparquet')
 
-    s3.upload_file(Bucket=event['bucket_name'],
-                   Key=event['file_key'], Filename=temp_file)
+    s3.upload_file(Bucket=event['bucket_name'], Key=event['file_key'],
+                   Filename=temp_file, ExtraArgs={'Metadata': {'gzipped': 'true'}})
