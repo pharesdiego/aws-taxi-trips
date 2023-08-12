@@ -38,4 +38,9 @@ def handler(event: ExpectedEvent = {}, context={}):
 
     keys_in_bucket = get_keys_in_bucket(event['bucket_name'])
 
-    return list(filter(lambda key: not is_key_marked_as_gzipped(event['bucket_name'], key), keys_in_bucket))
+    result = list(filter(lambda key: not is_key_marked_as_gzipped(
+        event['bucket_name'], key), keys_in_bucket))
+
+    print('Unprocessed files: ', result)
+
+    return result
