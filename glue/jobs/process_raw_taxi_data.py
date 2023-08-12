@@ -20,11 +20,11 @@ is_prod = False
 try:
     # Prod
     args = getResolvedOptions(sys.argv, ['JOB_NAME', 'file_key', 'source_bucket', 'target_bucket'])
-    job.init(args['JOB_NAME'], args)
     file_key = args['file_key']
     source_bucket = args['source_bucket']
     target_bucket = args['target_bucket']
     is_prod = True
+    job.init(args['JOB_NAME'] + file_key, args)
 except:
     # Dev
     file_key = 'year=2023/month=01/data.parquet'
