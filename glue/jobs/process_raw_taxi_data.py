@@ -237,7 +237,7 @@ dyf = dyf.apply_mapping([
 folder_path = '/'.join(file_key.split('/')[:-1])
 
 glueContext.write_dynamic_frame.from_options(
-    frame=dyf,
+    frame=dyf.repartition(2),
     connection_type='s3',
     format='csv',
     connection_options={'path': f's3://{target_bucket}/{folder_path}'},
