@@ -6,8 +6,7 @@ s3 = boto3.client('s3')
 
 
 class ExpectedEvent(TypedDict):
-    source_bucket: str
-    target_bucket: str
+    bucket_name: str
 
 
 def get_keys_in_bucket(bucket: str) -> list[str]:
@@ -22,23 +21,21 @@ def get_keys_in_bucket(bucket: str) -> list[str]:
         return []
 
 
+def is_key_marked_as_gzipped(bucket: str, key: str) -> bool:
+    return 'gzipped' in s3.head_object(Bucket=bucket, Key=key)['Metadata']
+
+
 def get_partition_path_from_key(file_key: str) -> str:
     return '/'.join(file_key.split('/')[:-1])
 
 
 def handler(event: ExpectedEvent = {}, context={}):
     """
-    Returns a list of unprocessed files by comparing which partitions
-    exist in source_bucket but don't exist in target_bucket
+    Returns a list of unprocessed files in a specified bucket.
+    An unprocessed file is one without a 'gzipped' metadata key.
     """
     print('Working on: ', json.dumps(event))
 
-    source_bucket_keys = get_keys_in_bucket(event['source_bucket'])
-    target_bucket_keys = '~'.join(get_keys_in_bucket(event['target_bucket']))
+    keys_in_bucket = get_keys_in_bucket(event['bucket_name'])
 
-    result = list(filter(lambda s_key: get_partition_path_from_key(
-        s_key) not in target_bucket_keys, source_bucket_keys))
-
-    print('Result: ', json.dumps(result))
-
-    return result
+    return list(filter(lambda key: not is_key_marked_as_gzipped(event['bucket_name'], key), keys_in_bucket))
