@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
   taxi-trips
@@ -59,7 +59,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -68,7 +68,7 @@ Resources:
       Policies:
         - PolicyName: GlueCrawlerAccessPolicy
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -76,14 +76,14 @@ Resources:
                 Resource:
                   - !GetAtt RawTaxiDataBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt RawTaxiDataBucket.Arn
-                      - '*'
+                      - "*"
                   - !GetAtt TransformedTaxiDataBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt TransformedTaxiDataBucket.Arn
-                      - '*'
+                      - "*"
               - Effect: Allow
                 Action:
                   - logs:PutLogEvents
@@ -107,7 +107,7 @@ Resources:
                   - glue:Batch*
                   - glue:Update*
                   - glue:*
-                Resource: 
+                Resource:
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/taxitripsdb"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/taxitripsdb/*"
@@ -116,8 +116,8 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: 'taxitripsdb'
-        Description: 'Glue DB for Taxi Trips Metadata'
+        Name: "taxitripsdb"
+        Description: "Glue DB for Taxi Trips Metadata"
   GlueTaxiDataCrawler:
     Type: AWS::Glue::Crawler
     Properties:
@@ -132,7 +132,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -141,7 +141,7 @@ Resources:
       Policies:
         - PolicyName: S3TransformedDataAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -149,14 +149,14 @@ Resources:
                 Resource:
                   - !GetAtt TransformedTaxiDataBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt TransformedTaxiDataBucket.Arn
-                      - '*'
+                      - "*"
   GlueProcessRawDataJobRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -165,21 +165,21 @@ Resources:
       Policies:
         - PolicyName: S3AssetsFullAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - s3:Get*
                   - s3:List*
-                Resource: 
+                Resource:
                   - !GetAtt GlueAssetsBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt GlueAssetsBucket.Arn
-                      - '*'
+                      - "*"
         - PolicyName: S3ReadRawData
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -188,12 +188,12 @@ Resources:
                 Resource:
                   - !GetAtt RawTaxiDataBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt RawTaxiDataBucket.Arn
-                      - '*'
+                      - "*"
         - PolicyName: S3WriteTransformData
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -201,20 +201,20 @@ Resources:
                 Resource:
                   - !GetAtt TransformedTaxiDataBucket.Arn
                   - !Join
-                    - '/'
+                    - "/"
                     - - !GetAtt TransformedTaxiDataBucket.Arn
-                      - '*'
+                      - "*"
         - PolicyName: GlueDBAccess
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - glue:*
-                Resource: 
-                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
-                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueTaxiDatabase}'
-                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueTaxiDatabase}/*'
+                Resource:
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueTaxiDatabase}"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueTaxiDatabase}/*"
   GlueAssetsBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
@@ -228,8 +228,8 @@ Resources:
       Timeout: 20
       Command:
         Name: glueetl
-        PythonVersion: '3'
-        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/process_raw_taxi_data.py'
+        PythonVersion: "3"
+        ScriptLocation: !Sub "s3://${GlueAssetsBucket}/process_raw_taxi_data.py"
       DefaultArguments:
         "--job-bookmark-option": "job-bookmark-enable"
       ExecutionProperty:
@@ -237,12 +237,12 @@ Resources:
       MaxRetries: 0
       Name: process_raw_taxi_data
       Role: !Ref GlueProcessRawDataJobRole
-      GlueVersion: '3.0'
+      GlueVersion: "3.0"
   GlueLoadIntoRedshiftJobRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -251,11 +251,11 @@ Resources:
       Policies:
         - PolicyName: IAmBecomeDeathTheDestroyerOfWorlds
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
-                Action: '*'
-                Resource: '*'
+                Action: "*"
+                Resource: "*"
   GlueJobDataIntoRedshift:
     Type: AWS::Glue::Job
     Properties:
@@ -264,8 +264,8 @@ Resources:
       Timeout: 20
       Command:
         Name: glueetl
-        PythonVersion: '3'
-        ScriptLocation: !Sub 's3://${GlueAssetsBucket}/load_transformed_taxi_data_into_redshift.py'
+        PythonVersion: "3"
+        ScriptLocation: !Sub "s3://${GlueAssetsBucket}/load_transformed_taxi_data_into_redshift.py"
       DefaultArguments:
         "--job-bookmark-option": "job-bookmark-enable"
       ExecutionProperty:
@@ -273,4 +273,4 @@ Resources:
       MaxRetries: 0
       Name: load_transformed_taxi_data_into_redshift
       Role: !Ref GlueLoadIntoRedshiftJobRole
-      GlueVersion: '4.0'
+      GlueVersion: "4.0"
