@@ -41,6 +41,16 @@ Resources:
             BucketName: !Ref RawTaxiDataBucket
         - S3ReadPolicy:
             BucketName: !Ref RawTaxiDataBucket
+  GetUnprocessedFilesFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 15
+      CodeUri: lambdas/get_unprocessed_files/
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref RawTaxiDataBucket
+        - S3ReadPolicy:
+            BucketName: !Ref TransformedTaxiDataBucket
   TaxiDataMinerFn:
     Type: AWS::Serverless::Function
     Properties:
