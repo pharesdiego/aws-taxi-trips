@@ -19,7 +19,8 @@ def get_already_extracted_files() -> str:
 
     try:
         # year=yyyy/month=mm/data.parquet
-        file_keys = [content['Key'] for page in iterator for content in page['Contents']]
+        file_keys = [content['Key']
+                     for page in iterator for content in page['Contents']]
 
         return [f'{key[5:9]}-{key[16:18]}' for key in file_keys]
     except Exception as e:
