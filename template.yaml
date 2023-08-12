@@ -261,7 +261,7 @@ Resources:
     Properties:
       WorkerType: G.1X
       NumberOfWorkers: 2
-      Timeout: 30
+      Timeout: 20
       Command:
         Name: glueetl
         PythonVersion: '3'
@@ -273,4 +273,4 @@ Resources:
       MaxRetries: 0
       Name: load_transformed_taxi_data_into_redshift
       Role: !Ref GlueLoadIntoRedshiftJobRole
-      GlueVersion: '3.0'
+      GlueVersion: '4.0'
