@@ -288,7 +288,7 @@ Resources:
         Name: taxi-trips-redshift-conn
         ConnectionType: JDBC
         PhysicalConnectionRequirements:
-          AvailabilityZone: give me the best one
+          AvailabilityZone: us-east-1f
           SubnetId: !Ref RedshiftSubnetId
           SecurityGroupIdList:
             - !Ref RedshiftSecurityGroupId
@@ -311,6 +311,16 @@ Resources:
             Resource: "*"
       RouteTableIds:
         - !Ref RouteTableId
+  GlueRedshiftCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: glue-redshift-crawler
+      Role: !GetAtt GlueLoadIntoRedshiftJobRole.Arn
+      DatabaseName: !Ref GlueTaxiDatabase
+      Targets:
+        JdbcTargets:
+          - ConnectionName: !Ref GlueConnectionToRedshift
+            Path: taxi_trips/public/fact_trips
   GlueJobDataIntoRedshift:
     Type: AWS::Glue::Job
     Properties:
