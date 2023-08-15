@@ -342,3 +342,92 @@ Resources:
       Connections:
         Connections:
           - !Ref GlueConnectionToRedshift
+  TaxiTripsETLStateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchAndXRayAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogDelivery
+                  - logs:GetLogDelivery
+                  - logs:UpdateLogDelivery
+                  - logs:DeleteLogDelivery
+                  - logs:ListLogDeliveries
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeLogGroups
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                Resource: "*"
+        - PolicyName: GlueAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                    - glue:StartJobRun
+                    - glue:GetJobRun
+                    - glue:GetJobRuns
+                    - glue:BatchStopJobRun
+                Resource:
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobDataIntoRedshift}"
+                  - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobProcessRawData}"
+        - PolicyName: LambdaAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt ConvertZstdToGzipFn.Arn
+                  - !GetAtt GetUnprocessedFilesFn.Arn
+                  - !GetAtt TaxiDataMinerFn.Arn
+                  - !Join
+                      - ":"
+                      - - !GetAtt ConvertZstdToGzipFn.Arn
+                        - "*"
+                  - !Join
+                      - ":"
+                      - - !GetAtt GetUnprocessedFilesFn.Arn
+                        - "*"
+                  - !Join
+                      - ":"
+                      - - !GetAtt TaxiDataMinerFn.Arn
+                        - "*"
+  TaxiTripsETLStateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: {}      
+  TaxiTripsETLStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: state_machines/taxi_trips_etl.asl.yaml
+      Role: !GetAtt TaxiTripsETLStateMachineRole.Arn
+      Tracing:
+        Enabled: true
+      Logging:
+        Level: ALL
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt TaxiTripsETLStateMachineLogGroup.Arn
+      Events:
+        ScheduleEvent:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(30 days)
+            State: ENABLED
+            RetryPolicy:
+              MaximumRetryAttempts: 3
+              MaximumEventAgeInSeconds: 120
