@@ -1,0 +1,78 @@
+Comment: Automated ETL from raw data into BI-ready data into Redshift
+StartAt: Extract into raw-data bucket
+States:
+    Extract into raw-data bucket:
+        Type: Task
+        Resource: arn:aws:states:::lambda:invoke
+        OutputPath: $.Payload
+        Parameters:
+            FunctionName: >-
+                arn:aws:lambda:us-east-1:176256382487:function:taxi-trips-TaxiDataMinerFn-QACLhuhbBs4Q:$LATEST
+        Next: Get unprocessed files
+    Get unprocessed files:
+        Type: Task
+        Resource: arn:aws:states:::lambda:invoke
+        OutputPath: $.Payload
+        Parameters:
+            FunctionName: >-
+                arn:aws:lambda:us-east-1:176256382487:function:taxi-trips-GetUnprocessedFilesFn-ODAWOP64ug0j:$LATEST
+            Payload:
+                source_bucket: raw-taxi-data
+                target_bucket: transformed-taxi-data
+        Retry:
+            - ErrorEquals:
+                  - Lambda.ServiceException
+                  - Lambda.AWSLambdaException
+                  - Lambda.SdkClientException
+                  - Lambda.TooManyRequestsException
+              IntervalSeconds: 2
+              MaxAttempts: 6
+              BackoffRate: 2
+        Next: Processing data
+    Processing data:
+        Type: Map
+        ItemProcessor:
+            ProcessorConfig:
+                Mode: INLINE
+            StartAt: ZSTD to GZIP
+            States:
+                ZSTD to GZIP:
+                    Type: Task
+                    Resource: arn:aws:states:::lambda:invoke
+                    Parameters:
+                        Payload.$: $
+                        FunctionName: >-
+                            arn:aws:lambda:us-east-1:176256382487:function:taxi-trips-ConvertZstdToGzipFn-rFsmT4I4fC1l:$LATEST
+                    Retry:
+                        - ErrorEquals:
+                              - Lambda.ServiceException
+                              - Lambda.AWSLambdaException
+                              - Lambda.SdkClientException
+                              - Lambda.TooManyRequestsException
+                          IntervalSeconds: 2
+                          MaxAttempts: 6
+                          BackoffRate: 2
+                    Next: Process raw taxi data
+                    ResultPath: null
+                Process raw taxi data:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                        JobName: process_raw_taxi_data
+                        Arguments:
+                            "--file_key.$": $.file_key
+                            "--source_bucket": raw-taxi-data
+                            "--target_bucket": transformed-taxi-data
+                    End: true
+        ItemSelector:
+            file_key.$: $$.Map.Item.Value
+            bucket_name: raw-taxi-data
+        MaxConcurrency: 10
+        Next: Load data into Redshift
+        ItemsPath: $
+    Load data into Redshift:
+        Type: Task
+        Resource: arn:aws:states:::glue:startJobRun.sync
+        Parameters:
+            JobName: load_transformed_taxi_data_into_redshift
+        End: true
