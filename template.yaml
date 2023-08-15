@@ -5,6 +5,20 @@ Description: >
 
   Taxi trips data in NYC
 
+Parameters:
+  RedshiftSubnetId:
+    Type: String
+    Default: subnet-0eefadd904c529b4a
+  RedshiftSecurityGroupId:
+    Type: String
+    Default: sg-0ad2e4a2a91074ee7
+  VPCId:
+    Type: String
+    Default: vpc-05afb09b1c017c73f
+  RouteTableId:
+    Type: String
+    Default: rtb-05279713dbc3d90cd
+
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
@@ -266,6 +280,37 @@ Resources:
               - Effect: Allow
                 Action: "*"
                 Resource: "*"
+  GlueConnectionToRedshift:
+    Type: AWS::Glue::Connection
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      ConnectionInput:
+        Name: taxi-trips-redshift-conn
+        ConnectionType: JDBC
+        PhysicalConnectionRequirements:
+          AvailabilityZone: give me the best one
+          SubnetId: !Ref RedshiftSubnetId
+          SecurityGroupIdList:
+            - !Ref RedshiftSecurityGroupId
+        ConnectionProperties:
+          JDBC_CONNECTION_URL: "{{resolve:ssm:redshift_conn_url}}"
+          USERNAME: "{{resolve:ssm:redshift_conn_usr}}"
+          PASSWORD: "{{resolve:ssm:redshift_conn_psw}}"
+  S3GatewayEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcEndpointType: Gateway
+      VpcId: !Ref VPCId
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action: "*"
+            Resource: "*"
+      RouteTableIds:
+        - !Ref RouteTableId
   GlueJobDataIntoRedshift:
     Type: AWS::Glue::Job
     Properties:
@@ -284,3 +329,6 @@ Resources:
       Name: load_transformed_taxi_data_into_redshift
       Role: !Ref GlueLoadIntoRedshiftJobRole
       GlueVersion: "4.0"
+      Connections:
+        Connections:
+          - !Ref GlueConnectionToRedshift
