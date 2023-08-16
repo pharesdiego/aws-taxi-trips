@@ -22,7 +22,7 @@ Parameters:
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 10
     MemorySize: 128
     Runtime: python3.9
     Handler: main.handler
@@ -79,6 +79,16 @@ Resources:
       Environment:
         Variables:
           RAW_TAXI_DATA_BUCKET_NAME: !Ref RawTaxiDataBucket
+  SendStatusNotificationFn:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambdas/send_status_notification
+      Policies:
+        SNSPublishMessagePolicy:
+          TopicName: !GetAtt SNSTopicTaxiTrips.TopicName
+      Environment:
+        Variables:
+          TOPIC_ARN: !Ref SNSTopicTaxiTrips
   GlueTaxiDataCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
@@ -378,10 +388,10 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                    - glue:StartJobRun
-                    - glue:GetJobRun
-                    - glue:GetJobRuns
-                    - glue:BatchStopJobRun
+                  - glue:StartJobRun
+                  - glue:GetJobRun
+                  - glue:GetJobRuns
+                  - glue:BatchStopJobRun
                 Resource:
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobDataIntoRedshift}"
                   - !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${GlueJobProcessRawData}"
@@ -396,20 +406,24 @@ Resources:
                   - !GetAtt GetUnprocessedFilesFn.Arn
                   - !GetAtt TaxiDataMinerFn.Arn
                   - !Join
-                      - ":"
-                      - - !GetAtt ConvertZstdToGzipFn.Arn
-                        - "*"
+                    - ":"
+                    - - !GetAtt ConvertZstdToGzipFn.Arn
+                      - "*"
                   - !Join
-                      - ":"
-                      - - !GetAtt GetUnprocessedFilesFn.Arn
-                        - "*"
+                    - ":"
+                    - - !GetAtt GetUnprocessedFilesFn.Arn
+                      - "*"
                   - !Join
-                      - ":"
-                      - - !GetAtt TaxiDataMinerFn.Arn
-                        - "*"
+                    - ":"
+                    - - !GetAtt TaxiDataMinerFn.Arn
+                      - "*"
   TaxiTripsETLStateMachineLogGroup:
     Type: AWS::Logs::LogGroup
-    Properties: {}      
+    Properties: {}
+  SNSTopicTaxiTrips:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: taxi-trips-topic
   TaxiTripsETLStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
@@ -431,3 +445,49 @@ Resources:
             RetryPolicy:
               MaximumRetryAttempts: 3
               MaximumEventAgeInSeconds: 120
+  EventBridgeStateMachineRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StateMachineDescribe
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:DescribeStateMachine
+                  - states:DescribeExecution
+                Resource: !Ref TaxiTripsETLStateMachine
+        - PolicyName: LambdaInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt SendStatusNotificationFn.Arn
+                Condition:
+                  ArnLike:
+                    AWS:SourceArn: !Sub "arn:aws:events:${AWS::Region}:${AWS::AccountId}:rule/*"
+  EventBridgeStateMachineRule:
+    Type: AWS::Events::Rule
+    Properties:
+      State: ENABLED
+      RoleArn: !GetAtt EventBridgeStateMachineRuleRole.Arn
+      Targets:
+        - Arn: !GetAtt SendStatusNotificationFn.Arn
+          Id: LambdaSNSTarget
+      EventPattern:
+        source:
+          - aws.states
+        detail-type:
+          - Step Functions Execution Status Change
+        detail:
+          stateMachineArn:
+            - !Ref TaxiTripsETLStateMachine
